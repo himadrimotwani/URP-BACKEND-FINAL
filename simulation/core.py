@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
+SEASON_FACTORS = [1.03, 1.10, 1.25, 1.01, 0.95, 0.87]
+
 
 # ================================
 # Economic Parameters
@@ -792,40 +794,22 @@ def simulate_game_round(state: GameState, order_quantity: int) -> tuple[RoundOut
 
 def generate_demand(historical_demands: List[int], method: str = "bootstrap") -> int:
     """
-    Generates a random demand value for one round.
-
-    Inputs:
-        historical_demands: List of historical demand values to use for generation.
-        method: "bootstrap" (sample from history) or "normal" (normal distribution).
-
-    What happens:
-        If method is "bootstrap":
-            - Randomly selects one value from historical_demands list.
-        If method is "normal":
-            - Calculates mean and standard deviation from historical_demands.
-            - Generates a random value from normal distribution with those parameters.
-            - Ensures value is non-negative (clamps to 0 if negative).
-        If method is invalid, raises ValueError.
-
-    Output:
-        Returns an integer representing the generated demand value.
-
-    Context:
-        Called by simulate_game_round() to generate demand for each round.
-        Bootstrap method preserves exact historical distribution.
-        Normal method creates smoother distribution based on statistics.
-        Instructor can choose method when starting a game.
+    Seasonal demand model:
+    base demand with noise × seasonality factor
     """
-    if method == "bootstrap":
-        return random.choice(historical_demands)
 
-    elif method == "normal":
-        mean = statistics.mean(historical_demands)
-        stdev = statistics.stdev(historical_demands) if len(historical_demands) > 1 else 1
-        return max(0, int(random.gauss(mean, stdev)))
+    # period index = how many demands already generated
+    period = len(historical_demands)
 
-    else:
-        raise ValueError("Unknown demand generation method")
+    # base stochastic demand
+    base = np.random.normal(996, 12)
+
+    # seasonal multiplier
+    season_factor = SEASON_FACTORS[period % len(SEASON_FACTORS)]
+
+    demand = base * season_factor
+
+    return max(0, int(round(demand)))
 
 
 # ================================
